@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.admin == true || 
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin') ||
+         (request.auth.token.email == "saisumansamantaray184@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'role', 'trustScore', 'joinedAt']) &&
+             data.uid is string && data.uid.size() < 128 &&
+             data.email is string && data.email.size() < 128 &&
+             data.displayName is string && data.displayName.size() < 128 &&
+             data.role in ['admin', 'user'] &&
+             data.trustScore is number && data.trustScore >= 0 && data.trustScore <= 100 &&
+             data.joinedAt is string;
+    }
+
+    function isValidIssue(data) {
+      return data.keys().hasAll(['id', 'reporterUid', 'category', 'description', 'imageUrl', 'latitude', 'longitude', 'address', 'status', 'isFake', 'upvotes', 'comments', 'createdAt', 'updatedAt']) &&
+             data.id is string &&
+             data.reporterUid is string && data.reporterUid.size() < 128 &&
+             data.category is string && data.category.size() < 100 &&
+             data.description is string && data.description.size() < 5000 &&
+             data.imageUrl is string && data.imageUrl.size() < 2048 &&
+             data.latitude is number &&
+             data.longitude is number &&
+             data.address is string && data.address.size() < 500 &&
+             (!('landmark' in data) || (data.landmark is string && data.landmark.size() < 200)) &&
+             data.status in ['Pending', 'Verified', 'In Progress', 'Resolved', 'Rejected'] &&
+             data.isFake is bool &&
+             data.upvotes is list &&
+             data.comments is list &&
+             (!('rejectionReason' in data) || (data.rejectionReason is string && data.rejectionReason.size() < 1000)) &&
+             (!('aiReasoning' in data) || (data.aiReasoning is string && data.aiReasoning.size() < 2000)) &&
+             (!('aiConfidence' in data) || data.aiConfidence is number);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
+      allow update: if isAuthenticated() && ((isOwner(userId) && request.resource.data.role == resource.data.role && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'email'])) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /issues/{issueId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidIssue(request.resource.data) && request.resource.data.reporterUid == request.auth.uid && (request.resource.data.status == 'Pending' || request.resource.data.status == 'Verified');
+      allow update: if isAuthenticated() && (isAdmin() || (isOwner(resource.data.reporterUid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['description', 'category', 'landmark', 'updatedAt'])));
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['recipientUid', 'title', 'message', 'type', 'read', 'createdAt']) &&
+             data.recipientUid is string && data.recipientUid.size() < 128 &&
+             data.title is string && data.title.size() < 200 &&
+             data.message is string && data.message.size() < 1000 &&
+             data.type in ['status_change', 'broadcast', 'system', 'comment'] &&
+             data.read is bool &&
+             data.createdAt is string;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.recipientUid == request.auth.uid);
+      allow create: if isAuthenticated() && (isAdmin() || (request.resource.data.type == 'comment' && isValidNotification(request.resource.data)));
+      allow update: if isAuthenticated() && resource.data.recipientUid == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow delete: if isAuthenticated() && resource.data.recipientUid == request.auth.uid;
+    }
+  }
+}

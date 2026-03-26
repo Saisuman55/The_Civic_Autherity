@@ -1,0 +1,9 @@
+{
+  "name": "Remix: The Civic Authority",
+  "description": "Smart Traffic \u0026 Public Issue Reporting System for Indian urban and rural infrastructure management.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation",
+    "microphone"
+  ]
+}

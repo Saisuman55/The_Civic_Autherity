@@ -1,0 +1,101 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "trustScore": { "type": "number" },
+        "photoURL": { "type": "string" },
+        "bio": { "type": "string" },
+        "location": { "type": "string" },
+        "joinedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "role", "trustScore", "joinedAt"]
+    },
+    "IssueReport": {
+      "title": "IssueReport",
+      "description": "A report of a civic issue",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "reporterUid": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "address": { "type": "string" },
+        "landmark": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Verified", "In Progress", "Resolved", "Rejected"] },
+        "isFake": { "type": "boolean" },
+        "aiReasoning": { "type": "string" },
+        "aiConfidence": { "type": "number" },
+        "rejectionReason": { "type": "string" },
+        "upvotes": { "type": "array", "items": { "type": "string" } },
+        "comments": { 
+          "type": "array", 
+          "items": { 
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "authorUid": { "type": "string" },
+              "authorName": { "type": "string" },
+              "text": { "type": "string" },
+              "createdAt": { "type": "string", "format": "date-time" }
+            }
+          } 
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "reporterUid", "category", "description", "imageUrl", "latitude", "longitude", "address", "status", "isFake", "upvotes", "comments", "createdAt", "updatedAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "User notification",
+      "type": "object",
+      "properties": {
+        "recipientUid": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["status_change", "comment", "system"] },
+        "issueId": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["recipientUid", "title", "message", "type", "read", "createdAt"]
+    },
+    "SystemSettings": {
+      "title": "SystemSettings",
+      "description": "Global system configuration",
+      "type": "object",
+      "properties": {
+        "autoAiVerification": { "type": "boolean" }
+      },
+      "required": ["autoAiVerification"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "UserProfile",
+      "description": "User profiles"
+    },
+    "/issues/{issueId}": {
+      "schema": "IssueReport",
+      "description": "Civic issue reports"
+    },
+    "/settings/{settingId}": {
+      "schema": "SystemSettings",
+      "description": "Global settings"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User notifications"
+    }
+  }
+}
